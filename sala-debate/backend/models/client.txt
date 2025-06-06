@@ -1,6 +1,0 @@
-username:fralmeidad
-password:jiTnTlYRwzZQxY8V
-
-python -m pip install "pymongo[srv]"==3.12
-
-mongodb+srv://fralmeidad:jiTnTlYRwzZQxY8V@cluster0.5smo7sg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
