@@ -2,13 +2,18 @@ from agentscope import init
 from agentscope.agents import DictDialogAgent
 from agentscope.parsers import MarkdownJsonDictParser
 from agentscope.message import Msg
+from agentscope.msghub import msghub
 import os 
 import json  
 import ast    
 #ruta absoluta en donde esta el script.
 base_dir = os.path.dirname(os.path.abspath(__file__))
-
 model_config_path = os.path.join(base_dir,"configs","model_configs.json")
+
+DEFAULT_TOPIC = """
+En este chat se va discutir acerca de la bicicleta y por que deberia popularizarse más para combatir el cambio climatico.
+"""
+
 
 init(
     model_configs=model_config_path,
@@ -22,6 +27,12 @@ charles = DictDialogAgent(
         "Eres un analista experto en detectar baja calidad argumentativa. "
         "Evalúas mensajes en busca de falta de lógica, evidencia o claridad. "
         "Responde solo si detectas baja calidad en el mensaje reciente."
+        "Debes dar tus respuestas siempre en formato JSON válido (usando comillas dobles), exactamente como: "
+        "{"
+        "\"evaluacion\": \"...\", "
+        "\"respuesta\": \"...\", "
+        "\"intervencion\": true"
+        "}"
     ) 
 )
 
@@ -36,24 +47,42 @@ parser1 = MarkdownJsonDictParser(
 )
 charles.set_parser(parser1)
 
+hint = Msg(
+    name="Host",
+    content=DEFAULT_TOPIC,
+    role="assistant",
+)
+agents = [charles]
+
 # Historial de mensajes
 historial = []
 
 # Bucle de entrada del humano
 print("Inicio del análisis. Escribe tus argumentos uno a uno (Ctrl+C para salir).")
 try:
-    while True:
-        user_input = input(" Humano: ")
-        msg = Msg("Estudiante", user_input, "user")
-        historial.append(msg)
+    with msghub(agents,announcement=hint):
+        while True:
+            user_input = input(" Humano: ")
+            msg = Msg("Estudiante", user_input, "user")
+            historial.append(msg)
 
-        # El agente analiza todo el historial
-        respuesta = charles(historial)
-        parsed = ast.literal_eval(respuesta.content)
-        print("Evaluación:", parsed["evaluacion"])
-        print(respuesta)
-        if respuesta.metadata is False: 
-            print("no se evalua aun")
-
+            # El agente analiza todo el historial
+            respuesta = charles(historial)
+            print(respuesta.metadata)
+            print(type(respuesta.metadata))
+            try:
+                parsed = ast.literal_eval(respuesta.content)
+                print("Evaluación:", parsed["evaluacion"])
+                print(respuesta)
+                if respuesta.metadata is False: 
+                    print("no se evalua aun")
+            except (ValueError, SyntaxError) as e:
+                print("Error al parsear la respuesta del modelo:")
+                print(e)
+                print("Contenido recibido:", respuesta.content)
+            except KeyError as e:
+                print("Falta una clave esperada en la respuesta parseada:")
+                print(e)
+                print("Contenido parseado:", parsed if 'parsed' in locals() else 'No disponible')
 except KeyboardInterrupt:
     print("\nSesión finalizada.")

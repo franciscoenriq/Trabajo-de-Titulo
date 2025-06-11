@@ -6,7 +6,7 @@ import os
 from flask_pymongo import PyMongo
 from models import messages
 from dotenv import load_dotenv
-from agentsComponents.evaluador import analizar_argumento
+from agentsComponents.evaluador import *
 load_dotenv()
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +21,8 @@ app.mongo = mongo
 #redis_conn = Redis.from_url(redis_url)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+#temas a discutir 
+temas = {}
 """
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -105,6 +107,24 @@ def handle_message(data):
         'evaluado':resultado["evaluado"]
     }, room=room)
 
+
+@app.route("/init-topic",methods=["POST"])
+def init_topic():
+    data =request.json
+    room = data["room"]
+    topic = data["prompt_inicial"]
+
+    if room in conversaciones:
+        print("sala ya inicializada")
+        return jsonify({"status":"ya_inicializado"}),200
+    temas[room] = topic
+    inicializar_conversacion(room, topic)
+    return jsonify({"status": "initialized"}), 201
+
+@app.route('/tema/<room>', methods=["GET"])
+def obtener_tema(room):
+    tema = temas.get(room,"sin tema definido")
+    return jsonify({"tema":tema})
 
 
 if __name__ == "__main__":
